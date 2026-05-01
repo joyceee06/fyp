@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">EkoPantri</string>
+    <string name="title_inventory">Inventory</string>
+    <string name="title_recipe">Recipe</string>
+    <string name="title_tips">Tips</string>
+    <string name="title_insights">Insights</string>
+</resources>

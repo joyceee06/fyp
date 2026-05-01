@@ -1,0 +1,17 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme for Dark Mode. -->
+    <!-- We use NoActionBar because Compose provides its own TopAppBar -->
+    <style name="Theme.EkoPantri" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Status bar and Navigation bar setup -->
+        <!-- In Night mode, we want the system bars to be dark/transparent -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <!-- windowLightStatusBar should be FALSE in night mode so icons are white -->
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Optional: Sets the splash screen background to a dark grey/black -->
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
