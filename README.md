@@ -1,30 +1,61 @@
-EkoPantri -Smart Sustainable Pantry & Food Waste Management System
+# 🌱 EkoPantri – Smart Sustainable Pantry & Food Waste Management System
 
-EkoPantri is an Android application developed as a Final Year Project (FYP) to combat household food waste. It utilizes Generative AI and Computer Vision to help users manage inventory efficiently while providing expert-curated and AI-driven food preservation education.
+EkoPantri is an Android application developed as a Final Year Project (FYP) to reduce household food waste. The system leverages Generative AI and Computer Vision to help users manage pantry inventory efficiently while providing intelligent food storage guidance.
 
-Key Features
-1. AI-Powered Receipt Scanner
+---
 
-   •Technique: Multimodal Generative AI
-   
-   •Function: Users take a photo of their grocery receipt; the AI semantically analyzes the image to extract item names, quantities, and automatically suggests categories and storage locations (Fridge, Freezer, or Pantry).
+## 📌 Overview
 
-2. Smart Education & Assistant
+EkoPantri combines AI-driven automation with real-time inventory tracking to promote sustainable food consumption. It assists users in organizing groceries, monitoring expiry dates, and discovering recipes based on available ingredients.
 
-   •Cloud Repository: Curated storage guides synced via Firebase Firestore.
+---
 
-   •AI Assistant: A floating "Ask AI" assistant powered by Google Gemini that provides real-time, context-aware tips based on the user's current pantry inventory.
+## 🚀 Key Features
 
-3. Inventory & Expiry Tracking
-  
-   •Real-time Sync: Powered by Firebase Firestore for multi-device synchronization.
+### 🧾 AI-Powered Receipt Scanner
 
-   •Smart Alerts: Automated tracking of "Expiring Soon" items with user-defined notification thresholds.
+* **Technique:** Multimodal Generative AI
+* **Functionality:**
 
-   •Waste Analytics: Visual insights into consumption vs. waste patterns over time.
+  * Capture grocery receipts using the camera
+  * Extract item names and quantities automatically
+  * Suggest categories and storage locations (Fridge, Freezer, Pantry)
 
-4. Recipe Discovery (REST API)
+---
 
-   •Technique: Retrofit 2 integration with the Spoonacular API.
+### 🤖 Smart Education & AI Assistant
 
-   •Function: Suggests recipes based on ingredients the user already has in their inventory to prevent food from spoiling.
+* **Cloud Repository:** Storage guidelines synced via Firebase Firestore
+* **AI Assistant:**
+
+  * Integrated with Google Gemini
+  * Provides real-time, context-aware food storage tips
+  * Accessible via floating "Ask AI" interface
+
+---
+
+### 📦 Inventory & Expiry Tracking
+
+* Real-time synchronization using Firebase Firestore
+* Automated alerts for "Expiring Soon" items
+* Customizable notification thresholds
+* Waste analytics to track consumption vs. waste trends
+
+---
+
+### 🍳 Recipe Discovery
+
+* **API Integration:** Spoonacular API (via Retrofit 2)
+* Suggests recipes based on available ingredients
+* Helps reduce food waste by utilizing existing inventory
+
+---
+
+## 🛠️ Technologies Used
+
+* **Android (Java/Kotlin)**
+* **Firebase Firestore** (real-time database)
+* **Generative AI (Google Gemini)**
+* **Computer Vision**
+* **Retrofit 2 (REST API integration)**
+* **Spoonacular API**
