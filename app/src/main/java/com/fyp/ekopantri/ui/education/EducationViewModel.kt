@@ -149,7 +149,7 @@ class EducationViewModel(private val repository: EducationRepository) : ViewMode
             initializer {
                 val repository = EducationRepository(
                     generativeModel = GenerativeModel(
-                        modelName = "gemini-3-flash-preview",
+                        modelName = "gemini-1.5-flash",
                         apiKey = BuildConfig.GEMINI_EDUCATION_KEY
                     )
                 )
