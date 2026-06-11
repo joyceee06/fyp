@@ -316,11 +316,13 @@ fun InventoryItemCard(
                     InventoryStatusBadge(status)
                 }
 
-                IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, null, tint = MutedGray) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, null, tint = MutedGray) }
 
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEditClick() }, leadingIcon = { Icon(Icons.Default.Edit, null) })
-                    DropdownMenuItem(text = { Text("Delete", color = Color.Red) }, onClick = { showMenu = false; onDeleteClick() }, leadingIcon = { Icon(Icons.Default.DeleteOutline, null, tint = Color.Red) })
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEditClick() }, leadingIcon = { Icon(Icons.Default.Edit, null) })
+                        DropdownMenuItem(text = { Text("Delete", color = Color.Red) }, onClick = { showMenu = false; onDeleteClick() }, leadingIcon = { Icon(Icons.Default.DeleteOutline, null, tint = Color.Red) })
+                    }
                 }
             }
 

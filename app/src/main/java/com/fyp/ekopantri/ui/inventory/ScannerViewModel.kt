@@ -23,7 +23,7 @@ class ScannerViewModel : ViewModel() {
 
     // --- AI CONFIGURATION ---
     private val generativeModel = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-3-flash-preview",
         apiKey = BuildConfig.GEMINI_SCANNER_KEY
     )
 
@@ -57,47 +57,16 @@ class ScannerViewModel : ViewModel() {
     // --- PRIVATE IMAGE HELPERS ---
 
     /**
-     * Converts a content Uri to a scaled Bitmap for the AI model to process.
-     * This prevents OutOfMemory errors by ensuring the image is not unnecessarily large.
+     * Converts a content Uri to a Bitmap for the AI model to process.
      */
     private fun uriToBitmap(context: Context, uri: Uri): Bitmap? {
         return try {
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true // Only get dimensions first
-            }
-            context.contentResolver.openInputStream(uri)?.use { 
-                BitmapFactory.decodeStream(it, null, options) 
-            }
-
-            // Target max dimension (e.g., 1024px is enough for text recognition)
-            val reqSize = 1024
-            options.inSampleSize = calculateInSampleSize(options, reqSize, reqSize)
-            options.inJustDecodeBounds = false // Now decode for real
-
-            context.contentResolver.openInputStream(uri)?.use { 
-                BitmapFactory.decodeStream(it, null, options) 
-            }
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            BitmapFactory.decodeStream(inputStream)
         } catch (e: Exception) {
             Log.e(TAG, "Bitmap conversion error: ${e.message}")
             null
         }
-    }
-
-    /**
-     * Calculates a power-of-two sample size for efficient downscaling.
-     */
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-        val (height: Int, width: Int) = options.outHeight to options.outWidth
-        var inSampleSize = 1
-
-        if (height > reqHeight || width > reqWidth) {
-            val halfHeight = height / 2
-            val halfWidth = width / 2
-            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
-                inSampleSize *= 2
-            }
-        }
-        return inSampleSize
     }
 
     // --- PRIVATE PARSING HELPERS ---
