@@ -23,7 +23,6 @@ class ExpiryCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
                 val daysRemaining = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
 
                 // 3. Check if it matches the reminder setting (1, 3 or 7)
-                // We notify if the item is exactly at the reminder threshold or closer
                 if (daysRemaining >= 0 && daysRemaining <= item.reminderDays) {
                     NotificationHelper.showExpiryNotification(
                         applicationContext,

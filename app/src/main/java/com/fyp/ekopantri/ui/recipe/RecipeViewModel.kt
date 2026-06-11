@@ -4,23 +4,24 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fyp.ekopantri.BuildConfig
-import com.fyp.ekopantri.api.SpoonacularService
+import com.fyp.ekopantri.data.RecipeRepository
+import com.fyp.ekopantri.model.FoodItem
 import com.fyp.ekopantri.model.RecipeDetails
 import com.fyp.ekopantri.model.RecipeSearchItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+
+sealed interface RecipeUiState {
+    data object Loading : RecipeUiState
+    data class Success(val data: RecipeDetails) : RecipeUiState
+    data class Error(val message: String) : RecipeUiState
+}
 
 class RecipeViewModel : ViewModel() {
 
-    private val spoonService: SpoonacularService = Retrofit.Builder()
-        .baseUrl("https://api.spoonacular.com/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(SpoonacularService::class.java)
+    private val repository = RecipeRepository()
 
     private val _recipes = MutableStateFlow<List<RecipeSearchItem>>(emptyList())
     val recipes: StateFlow<List<RecipeSearchItem>> = _recipes.asStateFlow()
@@ -28,26 +29,48 @@ class RecipeViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _selectedRecipeDetail = MutableStateFlow<RecipeDetails?>(null)
-    val selectedRecipeDetail: StateFlow<RecipeDetails?> = _selectedRecipeDetail.asStateFlow()
+    private val _uiState = MutableStateFlow<RecipeUiState>(RecipeUiState.Loading)
+    val uiState: StateFlow<RecipeUiState> = _uiState.asStateFlow()
 
-    fun generateRecipes(pantryItems: List<String>) {
+    private fun isRecipeConfigured(): Boolean = BuildConfig.SPOONACULAR_KEY.isNotBlank()
+
+    fun generateRecipes(pantryItems: List<FoodItem>) {
         if (pantryItems.isEmpty()) return
+        if (!isRecipeConfigured()) {
+            Log.e("RecipeVM", "SPOONACULAR_KEY missing in local.properties")
+            _recipes.value = emptyList()
+            return
+        }
 
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val cleanedItems = pantryItems.map { it.lowercase().trim().split(" ").last() }
-                val query = cleanedItems.take(3).joinToString(",")
+                // 1. Process items: Remove expired, sort by urgency, take unique names
+                val now = System.currentTimeMillis()
+                val ingredientNames = pantryItems
+                    .filter { it.expiryDate > now }
+                    .sortedBy { it.expiryDate }
+                    .map { it.name.lowercase().trim() }
+                    .distinct()
 
-                var response = spoonService.searchRecipes(
+                if (ingredientNames.isEmpty()) {
+                    _recipes.value = emptyList()
+                    return@launch
+                }
+
+                // 2. Prepare API Query (Top 3 ingredients)
+                val query = ingredientNames.take(3).joinToString(",")
+
+                // 3. Fetch from Repository
+                var response = repository.searchRecipes(
                     ingredients = query,
                     apiKey = BuildConfig.SPOONACULAR_KEY
                 )
 
-                if (response.results.isEmpty() && cleanedItems.isNotEmpty()) {
-                    response = spoonService.searchRecipes(
-                        ingredients = cleanedItems[0],
+                // Fallback: If 3-item combo fails, try the single most urgent item
+                if (response.results.isEmpty() && ingredientNames.isNotEmpty()) {
+                    response = repository.searchRecipes(
+                        ingredients = ingredientNames[0],
                         apiKey = BuildConfig.SPOONACULAR_KEY
                     )
                 }
@@ -64,21 +87,22 @@ class RecipeViewModel : ViewModel() {
     }
 
     fun fetchRecipeDetails(recipeId: Int, onComplete: () -> Unit) {
+        if (!isRecipeConfigured()) {
+            _uiState.value = RecipeUiState.Error("SPOONACULAR_KEY missing in local.properties")
+            return
+        }
         viewModelScope.launch {
-            _isLoading.value = true
+            _uiState.value = RecipeUiState.Loading
             try {
-                _selectedRecipeDetail.value = null
-
-                val response = spoonService.getRecipeInformation(
+                val response = repository.getRecipeInformation(
                     id = recipeId,
                     apiKey = BuildConfig.SPOONACULAR_KEY
                 )
-                _selectedRecipeDetail.value = response
+                _uiState.value = RecipeUiState.Success(response)
                 onComplete()
             } catch (e: Exception) {
                 Log.e("RecipeVM", "Detail error: ${e.message}")
-            } finally {
-                _isLoading.value = false
+                _uiState.value = RecipeUiState.Error(e.message ?: "Unknown error occurred")
             }
         }
     }

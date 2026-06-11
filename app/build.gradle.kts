@@ -11,12 +11,12 @@ plugins {
 
 android {
     namespace = "com.fyp.ekopantri"
-    compileSdk = 36 // Note: SDK 36 is Preview/Very new, ensure your Android Studio is updated
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.fyp.ekopantri"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -64,12 +64,13 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.perf)
     implementation(libs.google.generativeai)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.media3.database)
+    implementation(libs.androidx.ui.test)
 
     // Jetpack Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")

@@ -1,6 +1,6 @@
 package com.fyp.ekopantri.ui.education
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,192 +9,209 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.compose.ui.unit.sp
+import com.fyp.ekopantri.model.EducationItem
+import com.fyp.ekopantri.ui.theme.DarkForest
+import com.fyp.ekopantri.ui.theme.ForestGreen
+import com.fyp.ekopantri.ui.theme.AiPurple
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EducationDetailScreen(
     viewModel: EducationViewModel,
-    navController: NavController,
+    onBack: () -> Unit,
     documentId: String
 ) {
-    // Load content when entering the screen
     LaunchedEffect(documentId) {
         viewModel.loadContent(documentId)
     }
 
     val state by viewModel.uiState.collectAsState()
-    val aiTips by viewModel.aiTips.collectAsState()
-    var isAiLoading by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Education Detail") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            EducationDetailTopBar(
+                onBack = onBack
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            when (val s = state) {
+        Box(modifier = Modifier.padding(padding).fillMaxSize().background(Color.White)) {
+            when (val result = state) {
                 is EducationUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                is EducationUiState.Success -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        // SECTION 1: FIREBASE (Static & Trusted Content)
-                        Text(
-                            text = s.data.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "✔ Verified Content",
-                            color = ForestGreen,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                        ) {
-                            Text(
-                                text = s.data.content,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-
-                        if (s.data.baseTips.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Storage Checklist",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = ForestGreen
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            s.data.baseTips.forEach { tip ->
-                                Row(
-                                    modifier = Modifier.padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Text("✅ ", style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        text = tip,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = DarkForest
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // SECTION 2: GEMINI (Dynamic AI Layer)
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            thickness = DividerDefaults.Thickness,
-                            color = DividerDefaults.color
-                        )
-
-                        if (aiTips == null) {
-                            Text(
-                                "Want more personalized tips?",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = Color.Gray
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Button(
-                                onClick = {
-                                    isAiLoading = true
-                                    viewModel.enhanceWithAi(s.data)
-                                },
-                                enabled = !isAiLoading,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                if (isAiLoading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(Icons.Default.AutoAwesome, null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        "AI-Enhanced Tips (Malaysia Context)",
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                }
-                            }
-                        } else {
-                            // Reset loading state once tips arrive
-                            isAiLoading = false
-
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, Color(0xFF8E44AD)), // Purple AI Theme
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF4ECF7))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome,
-                                            "AI",
-                                            tint = Color(0xFF8E44AD),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            "Gemini Insights (MY)",
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF8E44AD)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = aiTips!!,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-                    }
+                    EducationDetailLoading()
                 }
                 is EducationUiState.Error -> {
-                    Text("Error loading content")
+                    EducationDetailError(result.message)
+                }
+                is EducationUiState.Success -> {
+                    EducationDetailContent(item = result.data)
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EducationDetailTopBar(
+    onBack: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = { Text("Education Detail", fontWeight = FontWeight.Bold) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = ForestGreen,
+            titleContentColor = Color.White,
+            navigationIconContentColor = Color.White
+        )
+    )
+}
+
+// --- 1. CORE CONTENT COMPONENT ---
+@Composable
+fun EducationDetailContent(item: EducationItem) {
+    val scrollState = rememberScrollState()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 24.dp, vertical = 24.dp)
+    ) {
+        // Header
+        EducationDetailHeader(emoji = item.emoji, title = item.title, category = item.category)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Status Badges
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            InfoBadge(
+                icon = Icons.Default.AutoAwesome,
+                text = "AI Generated Guide",
+                containerColor = AiPurple.copy(alpha = 0.1f),
+                contentColor = AiPurple
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Main Content Box
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Text(
+                text = item.content,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(20.dp),
+                lineHeight = 28.sp,
+                color = DarkForest
+            )
+        }
+
+        // Checklist Section
+        if (item.baseTips.isNotEmpty()) {
+            EducationStorageChecklist(tips = item.baseTips)
+        }
+    }
+}
+
+// --- 2. SUB-COMPOSABLES ---
+@Composable
+fun EducationDetailHeader(emoji: String, title: String, category: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = emoji, fontSize = 40.sp, lineHeight = 40.sp)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 28.sp,
+                color = DarkForest
+            )
+        }
+        Text(
+            text = category,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.Gray,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+    }
+}
+
+@Composable
+fun InfoBadge(
+    icon: ImageVector,
+    text: String,
+    containerColor: Color = ForestGreen.copy(alpha = 0.1f),
+    contentColor: Color = ForestGreen,
+    style: TextStyle = MaterialTheme.typography.labelSmall
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(50)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, modifier = Modifier.size(14.dp), tint = contentColor)
+            Spacer(Modifier.width(6.dp))
+            Text(text = text, color = contentColor, style = style, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun EducationStorageChecklist(tips: List<String>) {
+    Spacer(modifier = Modifier.height(24.dp))
+    Text(
+        text = "Storage Checklist",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = DarkForest
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+
+    tips.forEach { tip ->
+        Row(
+            modifier = Modifier.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text("✅ ", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = tip,
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 20.sp,
+                color = DarkForest
+            )
+        }
+    }
+}
+
+@Composable
+fun EducationDetailLoading() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = ForestGreen)
+    }
+}
+
+@Composable
+fun EducationDetailError(message: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = "Error: $message", color = MaterialTheme.colorScheme.error)
     }
 }

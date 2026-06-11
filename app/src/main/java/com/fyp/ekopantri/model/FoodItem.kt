@@ -1,9 +1,6 @@
 package com.fyp.ekopantri.model
 
-import com.google.firebase.firestore.DocumentId
-
 data class FoodItem(
-    @DocumentId
     val id: String = "",
     val name: String = "",
     val category: String = "",
@@ -13,6 +10,4 @@ data class FoodItem(
     val imageUrl: String = "",
     val reminderDays: Int = 1,
     val ownerId: String = "",
-    val processedDate: Long = 0, // track WHEN it was used/thrown
-    val status: String = "active", // "active", "consumed", "discarded"
 )

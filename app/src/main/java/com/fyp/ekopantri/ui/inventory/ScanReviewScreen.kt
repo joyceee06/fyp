@@ -2,9 +2,9 @@
 
 package com.fyp.ekopantri.ui.inventory
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,14 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,62 +27,45 @@ import coil.compose.AsyncImage
 import com.fyp.ekopantri.model.FoodItem
 import java.text.SimpleDateFormat
 import java.util.*
+import com.fyp.ekopantri.ui.theme.*
 
 @Composable
 fun ScanReviewScreen(
     scannedItems: List<FoodItem>,
     onSaveAll: (List<FoodItem>) -> Unit,
     onCancel: () -> Unit,
-    viewModel: InventoryViewModel = viewModel() // 1. Inject ViewModel
+    viewModel: InventoryViewModel = viewModel()
 ) {
     var editableItems by remember { mutableStateOf(scannedItems) }
-    // 2. Observe dynamic categories
     val dynamicCategories by viewModel.availableCategories.collectAsState()
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Review Scanned Items", fontWeight = FontWeight.Black) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                title = { Text("Review Scanned Items", fontWeight = FontWeight.Bold, color = Color.White) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = ForestGreen)
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 8.dp) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Discard") }
-
-                    Button(
-                        onClick = { onSaveAll(editableItems) },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Save All (${editableItems.size})") }
-                }
-            }
-        }
+            ReviewBottomBar(
+                itemCount = editableItems.size,
+                onCancel = onCancel,
+                onConfirm = { onSaveAll(editableItems) }
+            )
+        },
+        containerColor = CreamBg
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .padding(padding)
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
-            contentPadding = PaddingValues(16.dp),
+                .fillMaxSize(),
+            contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             itemsIndexed(editableItems) { index, item ->
                 ReviewItemCard(
                     item = item,
-                    categories = dynamicCategories, // 3. Pass categories here
+                    categories = dynamicCategories,
                     onUpdate = { updated ->
                         editableItems = editableItems.toMutableList().apply { this[index] = updated }
                     },
@@ -95,6 +73,39 @@ fun ScanReviewScreen(
                         editableItems = editableItems.toMutableList().apply { removeAt(index) }
                     }
                 )
+            }
+            item { Spacer(Modifier.height(80.dp)) }
+        }
+    }
+}
+
+// --- SUB-COMPOSABLES ---
+
+@Composable
+fun ReviewBottomBar(itemCount: Int, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    Surface(tonalElevation = 8.dp, color = Color.White) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.Gray.copy(0.5f))
+            ) {
+                Text("Discard All", color = Color.Gray)
+            }
+
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
+            ) {
+                Text("Save All ($itemCount)", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -107,45 +118,26 @@ fun ReviewItemCard(
     onUpdate: (FoodItem) -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-    var showDatePicker by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var storageExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     val locations = listOf("Fridge", "Freezer", "Pantry")
 
-    val imageLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { onUpdate(item.copy(imageUrl = it.toString())) }
     }
 
-    OutlinedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray.copy(0.2f))
     ) {
         Column(Modifier.padding(16.dp)) {
+            // 1. Header: Image + Name + Delete
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(70.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { imageLauncher.launch("image/*") },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (item.imageUrl.isNotEmpty()) {
-                        AsyncImage(
-                            model = item.imageUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(Icons.Default.PhotoCamera, null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
+                ReviewItemThumbnail(imageUrl = item.imageUrl) { imageLauncher.launch("image/*") }
 
                 Spacer(Modifier.width(12.dp))
 
@@ -159,55 +151,18 @@ fun ReviewItemCard(
                 )
 
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, "Remove", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.DeleteOutline, "Remove", tint = Color.Red)
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
+            // 2. Category & Quantity
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = it },
-                    modifier = Modifier.weight(1.2f)
-                ) {
-                    OutlinedTextField(
-                        value = item.category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false },
-                        containerColor = Color.White
-                    ) {
-                        categories.forEach { selection ->
-                            DropdownMenuItem(
-                                text = { Text(selection) },
-                                onClick = {
-                                    onUpdate(item.copy(category = selection))
-                                    categoryExpanded = false
-                                }
-                            )
-                        }
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Add Custom", color = MaterialTheme.colorScheme.primary)
-                                }
-                            },
-                            onClick = {
-                                showNewCategoryDialog = true
-                                categoryExpanded = false
-                            }
-                        )
+                Box(Modifier.weight(1.2f)) {
+                    ReviewDropdownSelector("Category", item.category, categories, categoryExpanded, { categoryExpanded = it }) {
+                        if (it == "NEW") showNewCategoryDialog = true
+                        else onUpdate(item.copy(category = it))
                     }
                 }
 
@@ -215,55 +170,31 @@ fun ReviewItemCard(
                     value = item.quantity,
                     onValueChange = { if (it.all { c -> c.isDigit() }) onUpdate(item.copy(quantity = it)) },
                     label = { Text("Qty") },
-                    modifier = Modifier.weight(0.5f),
+                    modifier = Modifier.weight(0.6f),
                     shape = RoundedCornerShape(12.dp)
                 )
             }
 
             Spacer(Modifier.height(8.dp))
 
+            // 3. Storage & Expiry
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ExposedDropdownMenuBox(
-                    expanded = storageExpanded,
-                    onExpandedChange = { storageExpanded = it },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    OutlinedTextField(
-                        value = item.storageLocation,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Storage") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(storageExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = storageExpanded,
-                        onDismissRequest = { storageExpanded = false },
-                        containerColor = Color.White
-                    ) {
-                        locations.forEach { selection ->
-                            DropdownMenuItem(
-                                text = { Text(selection) },
-                                onClick = {
-                                    onUpdate(item.copy(storageLocation = selection))
-                                    storageExpanded = false
-                                }
-                            )
-                        }
+                Box(Modifier.weight(1f)) {
+                    ReviewDropdownSelector("Storage", item.storageLocation, locations, storageExpanded, { storageExpanded = it }) {
+                        onUpdate(item.copy(storageLocation = it))
                     }
                 }
 
                 OutlinedTextField(
-                    value = if (item.expiryDate > 0) dateFormatter.format(Date(item.expiryDate)) else "",
+                    value = formatDate(item.expiryDate),
                     onValueChange = {},
-                    label = { Text("Expiry Date") },
+                    label = { Text("Expiry") },
                     readOnly = true,
                     modifier = Modifier.weight(1.1f),
                     shape = RoundedCornerShape(12.dp),
                     trailingIcon = {
                         IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.CalendarToday, null, tint = ForestGreen, modifier = Modifier.size(18.dp))
                         }
                     }
                 )
@@ -271,75 +202,127 @@ fun ReviewItemCard(
 
             Spacer(Modifier.height(16.dp))
 
-            Column {
-                Text(
-                    text = "Notify Before Expiry",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val options = listOf(1, 3, 7)
-                    options.forEach { days ->
-                        val isSelected = item.reminderDays == days
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onUpdate(item.copy(reminderDays = days)) },
-                            label = { Text("$days Days") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
-                        )
-                    }
-                }
-            }
+            // 4. Reminder
+            ReviewReminderSelector(selected = item.reminderDays) { onUpdate(item.copy(reminderDays = it)) }
         }
     }
 
     // Dialogs
     if (showNewCategoryDialog) {
-        var newCatName by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showNewCategoryDialog = false },
-            title = { Text("New Category") },
-            text = {
-                OutlinedTextField(
-                    value = newCatName,
-                    onValueChange = { newCatName = it },
-                    label = { Text("Category Name") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (newCatName.isNotBlank()) {
-                        onUpdate(item.copy(category = newCatName.trim()))
-                    }
-                    showNewCategoryDialog = false
-                }) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancel") }
-            }
-        )
+        NewCategoryDialog(onDismiss = { showNewCategoryDialog = false }) {
+            onUpdate(item.copy(category = it))
+            showNewCategoryDialog = false
+        }
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = if (item.expiryDate > 0) item.expiryDate else null)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { onUpdate(item.copy(expiryDate = it)) }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text("OK", color = ForestGreen, fontWeight = FontWeight.Bold) }
             }
-        ) { DatePicker(state = datePickerState) }
+        ) { 
+            DatePicker(
+                state = datePickerState, 
+                colors = DatePickerDefaults.colors(
+                    todayContentColor = ForestGreen,
+                    todayDateBorderColor = ForestGreen,
+                    selectedDayContainerColor = ForestGreen
+                )
+            ) 
+        }
     }
+}
+
+@Composable
+fun ReviewItemThumbnail(imageUrl: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF3F4F6))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUrl.isNotEmpty()) {
+            AsyncImage(model = imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Icon(Icons.Default.PhotoCamera, null, tint = ForestGreen)
+        }
+    }
+}
+
+@Composable
+fun ReviewDropdownSelector(
+    label: String,
+    selected: String,
+    options: List<String>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelect: (String) -> Unit
+) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            shape = RoundedCornerShape(12.dp)
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }, modifier = Modifier.background(Color.White)) {
+            options.forEach { opt ->
+                DropdownMenuItem(text = { Text(opt) }, onClick = { onSelect(opt); onExpandedChange(false) })
+            }
+            if (label == "Category") {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("New Category", color = ForestGreen)
+                        }
+                    },
+                    onClick = { onSelect("NEW"); onExpandedChange(false) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReviewReminderSelector(selected: Int, onSelect: (Int) -> Unit) {
+    val options = listOf(1, 3, 7)
+    Column {
+        Text("Notify Before Expiry", style = MaterialTheme.typography.labelSmall, color = DarkForest, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { days ->
+                val isSelected = selected == days
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onSelect(days) },
+                    label = { Text("$days Days") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ForestGreen,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+    }
+}
+
+// --- LOGIC HELPERS ---
+
+private fun formatDate(timestamp: Long): String {
+    if (timestamp <= 0) return ""
+    return SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(timestamp))
 }

@@ -1,5 +1,6 @@
 package com.fyp.ekopantri.ui.education
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,123 +9,151 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.fyp.ekopantri.BuildConfig
 import com.fyp.ekopantri.data.EducationRepository
 import com.fyp.ekopantri.model.EducationItem
+import com.fyp.ekopantri.model.FoodItem
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-//UI State for the Education Detail Screen
+/**
+ * Sealed interface representing the UI state for education content loading.
+ */
 sealed interface EducationUiState {
     data object Loading : EducationUiState
     data class Success(val data: EducationItem) : EducationUiState
     data class Error(val message: String) : EducationUiState
 }
 
+/**
+ * ViewModel responsible for managing AI-generated educational content.
+ * It handles article generation based on inventory, general AI assistance, and filtering.
+ */
 class EducationViewModel(private val repository: EducationRepository) : ViewModel() {
 
+    // --- 1. RAW DATA STREAMS (INTERNAL) ---
+    private val _aiGeneratedArticles = MutableStateFlow<List<EducationItem>>(emptyList())
+    private val pantryItems = MutableStateFlow<List<FoodItem>>(emptyList())
+    
+    private val _aiAnswer = MutableStateFlow<String?>(null)
+    private val _isAiLoading = MutableStateFlow(false)
+    private val _isArticlesLoading = MutableStateFlow(false)
+    private val _uiState = MutableStateFlow<EducationUiState>(EducationUiState.Loading)
+
+    // --- 2. PUBLIC UI STATE ---
+    val searchQuery = MutableStateFlow("")
+    val selectedCategory = MutableStateFlow("All")
+
+    val aiAnswer = _aiAnswer.asStateFlow()
+    val isAiLoading = _isAiLoading.asStateFlow()
+    val isArticlesLoading = _isArticlesLoading.asStateFlow()
+    val uiState = _uiState.asStateFlow()
+
+    /**
+     * The main filtered and sorted content for the Education Screen.
+     * Prioritizes articles based on the URGENCY (Expiry Date) of matching items in the pantry.
+     */
+    val filteredContent: StateFlow<List<EducationItem>> = combine(
+        _aiGeneratedArticles, searchQuery, selectedCategory, pantryItems
+    ) { articles, query, category, inventory ->
+        
+        articles
+            .filter { article ->
+                val matchesCategory = category == "All" ||
+                        article.category.equals(category, ignoreCase = true)
+                val matchesSearch = article.title.contains(query, ignoreCase = true) || 
+                                   article.content.contains(query, ignoreCase = true)
+                matchesCategory && matchesSearch
+            }
+            .sortedBy { article ->
+                val matchingItem = inventory.find { item ->
+                    article.title.contains(item.name, ignoreCase = true) || 
+                    article.content.contains(item.name, ignoreCase = true)
+                }
+                matchingItem?.expiryDate ?: Long.MAX_VALUE
+            }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // --- 3. BUSINESS LOGIC & ACTIONS ---
+
+    /**
+     * Updates the inventory context and triggers article generation if needed.
+     */
+    fun updateInventoryItems(items: List<FoodItem>) {
+        val hasArticles = _aiGeneratedArticles.value.isNotEmpty()
+        val itemsChanged = pantryItems.value != items
+
+        pantryItems.value = items
+        
+        // Trigger AI generation if articles are missing OR inventory has changed
+        if (!hasArticles || itemsChanged) {
+            val itemNames = items.map { it.name }.distinct()
+            Log.d(TAG, "Triggering AI generation. Items: $itemNames")
+            generateDynamicContent(itemNames)
+        }
+    }
+
+    /**
+     * Asks the AI assistant a specific question about food sustainability or storage.
+     */
+    fun askAiAboutFood(question: String) {
+        if (question.isBlank()) return
+        viewModelScope.launch {
+            _isAiLoading.value = true
+            _aiAnswer.value = repository.getGeneralAiResponse(question)
+            _isAiLoading.value = false
+        }
+    }
+
+    /**
+     * Loads a specific article's content for the detail screen.
+     */
+    fun loadContent(id: String) {
+        viewModelScope.launch {
+            _uiState.value = EducationUiState.Loading
+            val cachedAiItem = _aiGeneratedArticles.value.find { it.id == id }
+            
+            if (cachedAiItem != null) {
+                _uiState.value = EducationUiState.Success(cachedAiItem)
+            } else {
+                _uiState.value = EducationUiState.Error("Article not found or expired.")
+            }
+        }
+    }
+
+    // --- 4. PRIVATE HELPERS ---
+
+    private fun generateDynamicContent(items: List<String>) {
+        if (_isArticlesLoading.value) return
+        
+        viewModelScope.launch {
+            _isArticlesLoading.value = true
+            val generated = repository.generateAiArticles(items)
+            if (generated.isNotEmpty()) {
+                _aiGeneratedArticles.value = generated
+            } else {
+                Log.e(TAG, "Failed to generate AI articles")
+            }
+            _isArticlesLoading.value = false
+        }
+    }
+
+    // --- 5. FACTORY & COMPANION ---
+
     companion object {
+        private const val TAG = "EducationViewModel"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val repository = EducationRepository(
-                    firestore = FirebaseFirestore.getInstance(),
                     generativeModel = GenerativeModel(
                         modelName = "gemini-3-flash-preview",
                         apiKey = BuildConfig.GEMINI_EDUCATION_KEY
                     )
                 )
                 EducationViewModel(repository)
-            }
-        }
-    }
-
-    // =====================================================================================
-    // MAIN SCREEN STATES (List of Articles & General AI)
-    // =====================================================================================
-
-    private val _articles = MutableStateFlow<List<EducationItem>>(emptyList())
-    val articles: StateFlow<List<EducationItem>> = _articles.asStateFlow()
-
-    private val _aiAnswer = MutableStateFlow<String?>(null)
-    val aiAnswer: StateFlow<String?> = _aiAnswer.asStateFlow()
-
-    private val _isAiLoading = MutableStateFlow(false)
-    val isAiLoading: StateFlow<Boolean> = _isAiLoading.asStateFlow()
-
-
-    // =====================================================================================
-    // DETAIL SCREEN STATES (Specific Article & AI Enhancement)
-    // =====================================================================================
-
-    private val _uiState = MutableStateFlow<EducationUiState>(EducationUiState.Loading)
-    val uiState: StateFlow<EducationUiState> = _uiState.asStateFlow()
-
-    private val _aiTips = MutableStateFlow<String?>(null)
-    val aiTips: StateFlow<String?> = _aiTips.asStateFlow()
-
-
-    // =====================================================================================
-    // MAIN SCREEN LOGIC
-    // =====================================================================================
-
-    // Fetches all educational articles from Firebase Firestore
-    fun fetchAllArticles() {
-        viewModelScope.launch {
-            repository.getAllEducationItems()
-                .catch { e -> /* Handle error if necessary */ }
-                .collect { list ->
-                    _articles.value = list
-                }
-        }
-    }
-
-    // General chatbot logic for the search bar section
-    fun askAiAboutFood(question: String) {
-        if (question.isBlank()) return
-
-        viewModelScope.launch {
-            _isAiLoading.value = true
-            try {
-                _aiAnswer.value = repository.getGeneralAiResponse(question)
-            } finally {
-                _isAiLoading.value = false
-            }
-        }
-    }
-
-
-    // =====================================================================================
-    // DETAIL SCREEN LOGIC
-    // =====================================================================================
-
-
-     // Loads a specific article by ID from Firestore
-    fun loadContent(id: String) {
-        viewModelScope.launch {
-            _uiState.value = EducationUiState.Loading
-            _aiTips.value = null
-
-            repository.getEducationDetail(id)
-                .catch { e ->
-                    _uiState.value = EducationUiState.Error(e.message ?: "Unknown Error")
-                }
-                .collect { data ->
-                    _uiState.value = EducationUiState.Success(data)
-                }
-        }
-    }
-
-    // Uses Gemini AI to enhance a specific Firebase article with Malaysian context
-    fun enhanceWithAi(item: EducationItem) {
-        viewModelScope.launch {
-            _isAiLoading.value = true
-            try {
-                val currentTips = repository.getAiEnhancement(item.content, item.title)
-                _aiTips.value = currentTips
-            } finally {
-                _isAiLoading.value = false
             }
         }
     }
